@@ -1,6 +1,8 @@
 from enum import Enum
 
+
 class transformation(Enum):
+	''' Define se uma operação deve ser aplicada normalmente ou em sua versão inversa '''
 	normal = 1
 	inverse = -1
 
@@ -23,7 +25,8 @@ class AES:
 		0xE1, 0xF8, 0x98, 0x11, 0x69, 0xD9, 0x8E, 0x94, 0x9B, 0x1E, 0x87, 0xE9, 0xCE, 0x55, 0x28, 0xDF,
 		0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68, 0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16,
 	)
-
+	''' Define a tabela de substituição '''
+	
 	INV_S_BOX = (
 		0x52, 0x09, 0x6A, 0xD5, 0x30, 0x36, 0xA5, 0x38, 0xBF, 0x40, 0xA3, 0x9E, 0x81, 0xF3, 0xD7, 0xFB,
 		0x7C, 0xE3, 0x39, 0x82, 0x9B, 0x2F, 0xFF, 0x87, 0x34, 0x8E, 0x43, 0x44, 0xC4, 0xDE, 0xE9, 0xCB,
@@ -42,7 +45,7 @@ class AES:
 		0xA0, 0xE0, 0x3B, 0x4D, 0xAE, 0x2A, 0xF5, 0xB0, 0xC8, 0xEB, 0xBB, 0x3C, 0x83, 0x53, 0x99, 0x61,
 		0x17, 0x2B, 0x04, 0x7E, 0xBA, 0x77, 0xD6, 0x26, 0xE1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0C, 0x7D,
 	)
-
+	''' Define a inversa da tabela de substituição '''
 
 	def addRoundKey(self, state, roundKey):
 		for i in range(4):
@@ -51,6 +54,15 @@ class AES:
 		pass
 
 	def substituteBytes(self, state, transform:transformation):
+		""" Substitui cada byte conforme a tabela de substituição.
+
+		Args:
+			state : O numerador.
+			transform (transformation): Se a tabela S_BOX (encrypt) ou INV_S_BOX (decrypt) deve ser usada.
+
+		Returns:
+			float: O estado com os bytes substituidos.
+		"""
 		for i in range(4):
 			for j in range(4):
 				if transform is transformation.normal:
@@ -60,6 +72,15 @@ class AES:
 		pass
 
 	def shiftRows(self, state, transform:transformation):
+		""" Realiza o deslocamento das linhas
+
+		Args:
+			state : O numerador.
+			transform (transformation): Se o deslocamento circular deve ser feito a esquerda (encrypt) ou a direita (decrypt)
+
+		Returns:
+			float: O estado com os bytes deslocados.
+		"""
 		if transform is transformation.normal:
 			state[0][1], state[1][1], state[2][1], state[3][1] = state[1][1], state[2][1], state[3][1], state[0][1]
 			state[0][2], state[1][2], state[2][2], state[3][2] = state[2][2], state[3][2], state[0][2], state[1][2]
@@ -71,6 +92,15 @@ class AES:
 		pass
 
 	def mixColumns(self):
+		""" Realiza o embaralhamento das colunas
+
+		Args:
+			state : O numerador.
+			transform (transformation): Se o deslocamento circular deve ser feito a esquerda (encrypt) ou a direita (decrypt)
+
+		Returns:
+			float: O estado com os bytes deslocados.
+		"""
 		pass
 
 	def expandKey(self):
