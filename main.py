@@ -1,5 +1,5 @@
 from enum import Enum
-
+import sys
 
 class transformation(Enum):
 	''' Define se uma operação deve ser aplicada normalmente ou em sua versão inversa '''
@@ -91,16 +91,54 @@ class AES:
 			state[0][3], state[1][3], state[2][3], state[3][3] = state[1][3], state[2][3], state[3][3], state[0][3]
 		pass
 
-	def mixColumns(self):
-		""" Realiza o embaralhamento das colunas
+	def xtime(self, poly):
+		""" Realiza a multiplicação do polinómio poly pelo polinómio x¹ (0x02), reduzindo quando necessário.
+
+		Args:
+			poly: O polinómio (1 byte)
+
+		Returns:
+			byte: O polinómio multiplicado pelo polinómio x¹ e reduzido.
+		"""
+		if (poly & 0x80):
+			return (poly << 1 & 0xFF) ^ 0x1B 
+		else:
+			return (poly << 1)
+
+	def decrypt_mix(self, column):
+		expression1 = self.xtime(self.xtime(column[0] ^ column[2]))
+		expression2 = self.xtime(self.xtime(column[1] ^ column[3]))
+
+		column[0] ^= expression1
+		column[1] ^= expression2
+		column[2] ^= expression1
+		column[3] ^= expression2
+		pass
+
+	def simple_mix(self, column):
+		commun = column[0] ^ column[1] ^ column[2] ^ column[3]
+		temp = column[0]
+		column[0] ^= self.xtime(column[0] ^ column[1]) ^ commun
+		column[1] ^= self.xtime(column[1] ^ column[2]) ^ commun
+		column[2] ^= self.xtime(column[2] ^ column[3]) ^ commun
+		column[3] ^= self.xtime(column[3] ^ temp) ^ commun
+		pass
+
+	def mixColumns(self, state, transform:transformation):
+		""" Realiza o embaralhamento das colunas.
 
 		Args:
 			state : O numerador.
-			transform (transformation): Se o deslocamento circular deve ser feito a esquerda (encrypt) ou a direita (decrypt)
+			transform (transformation): Se o embaralhamento deve ser feito a para (encrypt) ou para (decrypt)
 
 		Returns:
 			float: O estado com os bytes deslocados.
 		"""
+		if transform is transformation.inverse:
+			self.decrypt_mix(state[i])
+		
+		for i in range(4):
+			self.simple_mix(state[i])
 		pass
 
 	def expandKey(self):
@@ -109,4 +147,14 @@ class AES:
 
 
 if __name__ == '__main__':
+	#s = AES().xtime(128)
+	text = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+	s = [
+		[1, 2, 3],
+		[4, 5, 6],
+		[6, 7, 8]
+	]
+	n = [list(text[i:i+4]) for i in range(0, len(text), 4)]
+	print(n)
+	print(sum(n,[]))
 	pass
