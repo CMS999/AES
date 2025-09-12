@@ -26,7 +26,7 @@ class AES:
 		0x8C, 0xA1, 0x89, 0x0D, 0xBF, 0xE6, 0x42, 0x68, 0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16,
 	)
 	''' Define a tabela de substituição '''
-	
+
 	INV_S_BOX = (
 		0x52, 0x09, 0x6A, 0xD5, 0x30, 0x36, 0xA5, 0x38, 0xBF, 0x40, 0xA3, 0x9E, 0x81, 0xF3, 0xD7, 0xFB,
 		0x7C, 0xE3, 0x39, 0x82, 0x9B, 0x2F, 0xFF, 0x87, 0x34, 0x8E, 0x43, 0x44, 0xC4, 0xDE, 0xE9, 0xCB,
@@ -47,7 +47,23 @@ class AES:
 	)
 	''' Define a inversa da tabela de substituição '''
 
+	RCON = (
+		0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36
+	)
+	''' Define a constante da rodada '''
+
+	def __init__(self):
+		self.roundKeys = [[]]
+
 	def addRoundKey(self, state, roundKey):
+		""" Realiza a soma (em corpo finito) do estado e a chave da rodada
+
+		Args:
+			state : O estado (bloco).
+
+		Returns:
+			float: O estado a chave de rodada somada.
+		"""
 		for i in range(4):
 			for j in range(4):
 				state[i][j] ^= roundKey[i][j]
@@ -57,7 +73,7 @@ class AES:
 		""" Substitui cada byte conforme a tabela de substituição.
 
 		Args:
-			state : O numerador.
+			state : O estado (bloco).
 			transform (transformation): Se a tabela S_BOX (encrypt) ou INV_S_BOX (decrypt) deve ser usada.
 
 		Returns:
@@ -75,7 +91,7 @@ class AES:
 		""" Realiza o deslocamento das linhas
 
 		Args:
-			state : O numerador.
+			state : O estado (bloco).
 			transform (transformation): Se o deslocamento circular deve ser feito a esquerda (encrypt) ou a direita (decrypt)
 
 		Returns:
@@ -98,14 +114,22 @@ class AES:
 			poly: O polinómio (1 byte)
 
 		Returns:
-			byte: O polinómio multiplicado pelo polinómio x¹ e reduzido.
+			byte: O polinómio **poly** multiplicado pelo polinómio **x¹** e reduzido mod (x⁸ + x⁴ + x³ + x + 1).
 		"""
 		if (poly & 0x80):
-			return (poly << 1 & 0xFF) ^ 0x1B 
+			return (poly << 1 & 0xFF) ^ 0x1B
 		else:
 			return (poly << 1)
 
 	def decrypt_mix(self, column):
+		""" Realiza o pré-cálculo das colunas, utilizando uma simplicação por multiplicação xtime (polinômio x¹).
+
+		Args:
+			state : A coluna (n) do estado.
+
+		Returns:
+			coluna: A coluna pré-computada para realizar a multiplicação (em corpo finito) com a matriz de transformação
+		"""
 		expression1 = self.xtime(self.xtime(column[0] ^ column[2]))
 		expression2 = self.xtime(self.xtime(column[1] ^ column[3]))
 
@@ -116,45 +140,142 @@ class AES:
 		pass
 
 	def simple_mix(self, column):
+		""" Realiza o embaralhamento das colunas, utilizando uma simplicação por multiplicação xtime (polinômio x¹).
+
+		Args:
+			state : A coluna (n) do estado.
+
+		Returns:
+			coluna: A coluna multiplicada (em corpo finito) pela matriz de transformação
+		"""
 		commun = column[0] ^ column[1] ^ column[2] ^ column[3]
 		temp = column[0]
 		column[0] ^= self.xtime(column[0] ^ column[1]) ^ commun
 		column[1] ^= self.xtime(column[1] ^ column[2]) ^ commun
 		column[2] ^= self.xtime(column[2] ^ column[3]) ^ commun
 		column[3] ^= self.xtime(column[3] ^ temp) ^ commun
-		pass
 
 	def mixColumns(self, state, transform:transformation):
 		""" Realiza o embaralhamento das colunas.
 
 		Args:
-			state : O numerador.
+			state : O estado (bloco).
 			transform (transformation): Se o embaralhamento deve ser feito a para (encrypt) ou para (decrypt)
 
 		Returns:
-			float: O estado com os bytes deslocados.
+			float: O estado com os bytes embaralhados.
 		"""
 		if transform is transformation.inverse:
-			self.decrypt_mix(state[i])
-		
+			for i in range (4):
+				self.decrypt_mix(state[i])
+
 		for i in range(4):
 			self.simple_mix(state[i])
 		pass
 
-	def expandKey(self):
-		pass
-	pass
+	def g(self, word, round):
+		""" Transforma a palavra (word), de acordo com o round
 
+		Args:
+			word: A palavra a ser transformada
+			round: O round atual de transformação
+
+		Returns:
+			float: A nova palavra
+		"""
+		word[0], word[1], word[2], word[3] = word[1], word[2], word[3], word[0]
+
+		word[0] = self.S_BOX[word[0]]
+		word[1] = self.S_BOX[word[1]]
+		word[2] = self.S_BOX[word[2]]
+		word[3] = self.S_BOX[word[3]]
+
+		word[0] ^= self.RCON[round]
+		pass
+
+	def expandKey(self, key:bytes):
+		""" Expande a chave privada, gerando a chave de cada rodada.
+
+		Args:
+			key: a chave privada fornecida pelo usuario.
+
+		Returns:
+			float: Todas as chaves a serem usadas pelo algoritmo.
+		"""
+		round = 0
+		self.roundKeys = [list(key[i:i+4]) for i in range(0, len(key), 4)]
+		for i in range(4, 44):
+			temp = self.roundKeys[i-1][:]
+			if i % 4 == 0:
+				round += 1
+				self.g(temp, round)
+
+			newKey = []
+			for j in range(4):
+				newKey.append(self.roundKeys[i-4][j] ^ temp[j])
+			self.roundKeys.append(newKey)
+		pass
+
+	def hexToBytes(self, Hex_in_text:str):
+		hex = bytes.fromhex(Hex_in_text)
+		return hex
+
+	def textToBytes(self, plaintext:str):
+		pass
+
+	def encrypt(self, cyphertext:str, key:str):
+		self.expandKey(self.hexToBytes(key))
+		cypher = self.hexToBytes(cyphertext)
+		state = [list(cypher[i:i+4]) for i in range(0, len(cypher), 4)]
+		self.addRoundKey(state, self.roundKeys[0:4])
+
+		for round in range(1, 10):
+			self.substituteBytes(state, transformation.normal)
+			self.shiftRows(state, transformation.normal)
+			self.mixColumns(state, transformation.normal)
+			self.addRoundKey(state, self.roundKeys[round*4:(round*4)+4])
+
+		self.substituteBytes(state, transformation.normal)
+		self.shiftRows(state, transformation.normal)
+		self.addRoundKey(state, self.roundKeys[40:44])
+		return state
+
+	def decrypt(self, cyphertext:str, key:str):
+		self.expandKey(self.hexToBytes(key))
+		cypher = self.hexToBytes(cyphertext)
+		state = [list(cypher[i:i+4]) for i in range(0, len(cypher), 4)]
+		self.addRoundKey(state, self.roundKeys[40:44])
+
+		for round in range(9, 0, -1):
+			self.shiftRows(state, transformation.inverse)
+			self.substituteBytes(state, transformation.inverse)
+			self.addRoundKey(state, self.roundKeys[round*4:(round*4)+4])
+			self.mixColumns(state, transformation.inverse)
+
+		self.shiftRows(state, transformation.inverse)
+		self.substituteBytes(state, transformation.inverse)
+		self.addRoundKey(state, self.roundKeys[0:4])
+		return state
 
 if __name__ == '__main__':
-	#s = AES().xtime(128)
-	text = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-	s = [
-		[1, 2, 3],
-		[4, 5, 6],
-		[6, 7, 8]
-	]
-	n = [list(text[i:i+4]) for i in range(0, len(text), 4)]
-	print(n)
-	print(sum(n,[]))
+	s = AES()
+
+	text = '3243f6a8885a308d313198a2e0370734'
+	key = '2b7e151628aed2a6abf7158809cf4f3c'
+	state = s.encrypt(text, key)
+	resultado1 = []
+	for i in state:
+		for j in i:
+			resultado1.append(hex(j))
+
+	text = '3925841d02dc09fbdc118597196a0b32'
+	key = '2b7e151628aed2a6abf7158809cf4f3c'
+	state = s.decrypt(text, key)
+	resultado2 = []
+	for i in state:
+		for j in i:
+			resultado2.append(hex(j))
+
+	print(resultado1)
+	print(resultado2)
 	pass
