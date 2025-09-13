@@ -200,7 +200,7 @@ class AES:
 			key: a chave privada fornecida pelo usuario.
 
 		Returns:
-			float: Todas as chaves a serem usadas pelo algoritmo.
+			Todas as chaves a serem usadas pelo algoritmo.
 		"""
 		round = 0
 		self.roundKeys = [list(key[i:i+4]) for i in range(0, len(key), 4)]
@@ -260,7 +260,8 @@ class AES:
 if __name__ == '__main__':
 	s = AES()
 
-	text = '3243f6a8885a308d313198a2e0370734'
+	'teste do paper'
+	""" text = '3243f6a8885a308d313198a2e0370734'
 	key = '2b7e151628aed2a6abf7158809cf4f3c'
 	state = s.encrypt(text, key)
 	resultado1 = []
@@ -270,6 +271,23 @@ if __name__ == '__main__':
 
 	text = '3925841d02dc09fbdc118597196a0b32'
 	key = '2b7e151628aed2a6abf7158809cf4f3c'
+	state = s.decrypt(text, key)
+	resultado2 = []
+	for i in state:
+		for j in i:
+			resultado2.append(hex(j)) """
+
+	'testes da professora'
+	text = '63726970746F67726166696120414553'
+	key = '6D727561766564703132333435363738'
+	state = s.encrypt(text, key)
+	resultado1 = []
+	for i in state:
+		for j in i:
+			resultado1.append(hex(j))
+
+	text = '486CB4D61DD525B8ED356C6EF64BDC8A'
+	key = '6D727561766564703132333435363738'
 	state = s.decrypt(text, key)
 	resultado2 = []
 	for i in state:
