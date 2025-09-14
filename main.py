@@ -263,7 +263,7 @@ if __name__ == '__main__':
 	text = '63726970746F67726166696120414553'
 	key  = '6D727561766564703132333435363738'
 	state = s.encrypt(text, key)
-	print('Texto cifrado: ' + state)
+	print('Texto cifrado  : ' + state)
 
 	text = '486CB4D61DD525B8ED356C6EF64BDC8A'
 	key  = '6D727561766564703132333435363738'
@@ -273,7 +273,7 @@ if __name__ == '__main__':
 	text = '00112233445566778899aabbccddeeff'
 	key  = '000102030405060708090a0b0c0d0e0f'
 	state = s.encrypt(text, key)
-	print('Texto cifrado: ' + state)
+	print('Texto cifrado  : ' + state)
 
 	text = '69c4e0d86a7b0430d8cdb78070b4c55a'
 	key  = '000102030405060708090a0b0c0d0e0f'
