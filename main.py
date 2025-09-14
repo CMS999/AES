@@ -1,10 +1,3 @@
-from enum import Enum
-
-class transformation(Enum):
-	''' Define se uma operação deve ser aplicada normalmente ou em sua versão inversa '''
-	normal = 1
-	inverse = -1
-
 class AES:
 	S_BOX = (
 		0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5, 0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
@@ -68,7 +61,10 @@ class AES:
 
 	def __init__(self):
 		self.min = 0x1b
+		''' Polinómio de redução x⁸+ x⁴ + x³+ x + 1'''
+
 		self.roundKeys = [[]]
+		''' Matriz que armazenas as chaves'''
 
 	def g_mul(self, a:int, b:int) -> int:
 		""" Realiza a multiplicação (em corpo finito) de a por b.
@@ -76,7 +72,7 @@ class AES:
 		Args:
 			a: Um inteiro de 8 bits representando um polinómio
 			b: Um inteiro de 8 bits representando um polinómio
-		
+
 		Returns:
 			int: resultado da multiplicação
 		"""
@@ -85,10 +81,9 @@ class AES:
 			if (b & 1):
 				resultado ^= a
 			if (a & 0x80):
-				a = (a << 1) ^ self.min
+				a = (a << 1 & 0xFF) ^ self.min
 			else:
 				a <<= 1
-			a &= 0xFF
 			b >>= 1
 		return resultado
 
@@ -104,7 +99,7 @@ class AES:
 				state[i][j] ^= roundKey[i][j]
 		pass
 
-	def substituteBytes(self, state:list[list[int]], transform:transformation) -> None:
+	def substituteBytes(self, state:list[list[int]], transform:int) -> None:
 		""" Substitui cada byte do estado conforme a tabela de substituição.
 
 		Args:
@@ -113,13 +108,13 @@ class AES:
 		"""
 		for i in range(4):
 			for j in range(4):
-				if transform is transformation.normal:
+				if transform == 1:
 					state[i][j] = self.S_BOX[state[i][j]]
-				elif transform is transformation.inverse:
+				elif transform == -1:
 					state[i][j] = self.INV_S_BOX[state[i][j]]
 		pass
 
-	def shiftRows(self, state:list[list[int]], transform:transformation) -> None:
+	def shiftRows(self, state:list[list[int]], transform:int) -> None:
 		""" Realiza o deslocamento das linhas do estado
 
 		Args:
@@ -128,17 +123,17 @@ class AES:
 		"""
 
 		#como os dados estão dispostos por linhas o deslocamento acontece por colunas
-		if transform is transformation.normal:
+		if transform == 1:
 			state[0][1], state[1][1], state[2][1], state[3][1] = state[1][1], state[2][1], state[3][1], state[0][1]
 			state[0][2], state[1][2], state[2][2], state[3][2] = state[2][2], state[3][2], state[0][2], state[1][2]
 			state[0][3], state[1][3], state[2][3], state[3][3] = state[3][3], state[0][3], state[1][3], state[2][3]
-		elif transform is transformation.inverse:
+		elif transform == -1:
 			state[0][1], state[1][1], state[2][1], state[3][1] = state[3][1], state[0][1], state[1][1], state[2][1]
 			state[0][2], state[1][2], state[2][2], state[3][2] = state[2][2], state[3][2], state[0][2], state[1][2]
 			state[0][3], state[1][3], state[2][3], state[3][3] = state[1][3], state[2][3], state[3][3], state[0][3]
 		pass
 
-	def mixColumn(self, state:list[list[int]], transform:transformation):
+	def mixColumn(self, state:list[list[int]], transform:int):
 		""" Realiza a multiplicação de cada coluna do bloco pela matriz de transformação
 
 		Args:
@@ -146,9 +141,10 @@ class AES:
 			transform: Se deve transformar a usando TRANSFORM_MATRIZ (encrypt) ou INV_TRANSFORM_MATRIZ (encrypt)
 		"""
 		matriz = self.TRANSFORM_MATRIZ
-		if transform is transformation.inverse:
+		if transform == -1:
 			matriz = self.INV_TRANSFORM_MATRIZ
 
+		#como os dados estão dispostos por linhas o mix é feito linha a linha
 		for i in range(4):
 			column = state[i].copy()
 			state[i][0] = self.g_mul(column[0], matriz[0][0]) ^ self.g_mul(column[1], matriz[0][1]) ^ self.g_mul(column[2], matriz[0][2]) ^ self.g_mul(column[3], matriz[0][3])
@@ -207,7 +203,8 @@ class AES:
 		return text
 
 	def encrypt(self, cyphertext:str, key:str) -> str:
-		cypher = self.hexToBytes(cyphertext)
+		#cypher = self.hexToBytes(cyphertext)
+		cypher = bytes(cyphertext, 'utf-8')
 		state = [list(cypher[i:i+4]) for i in range(0, len(cypher), 4)]
 		byteKey = self.hexToBytes(key)
 
@@ -215,13 +212,13 @@ class AES:
 		self.addRoundKey(state, self.roundKeys[0:4])
 
 		for round in range(1, 10):
-			self.substituteBytes(state, transformation.normal)
-			self.shiftRows(state, transformation.normal)
-			self.mixColumn(state, transformation.normal)
+			self.substituteBytes(state, 1)
+			self.shiftRows(state, 1)
+			self.mixColumn(state, 1)
 			self.addRoundKey(state, self.roundKeys[round*4:(round*4)+4])
 
-		self.substituteBytes(state, transformation.normal)
-		self.shiftRows(state, transformation.normal)
+		self.substituteBytes(state, 1)
+		self.shiftRows(state, 1)
 		self.addRoundKey(state, self.roundKeys[40:44])
 
 		self.roundKeys = [[]]
@@ -237,30 +234,32 @@ class AES:
 		self.addRoundKey(state, self.roundKeys[40:44])
 
 		for round in range(9, 0, -1):
-			self.shiftRows(state, transformation.inverse)
-			self.substituteBytes(state, transformation.inverse)
+			self.shiftRows(state, -1)
+			self.substituteBytes(state, -1)
 			self.addRoundKey(state, self.roundKeys[round*4:(round*4)+4])
-			self.mixColumn(state, transformation.inverse)
+			self.mixColumn(state, -1)
 
-		self.shiftRows(state, transformation.inverse)
-		self.substituteBytes(state, transformation.inverse)
+		self.shiftRows(state, -1)
+		self.substituteBytes(state, -1)
 		self.addRoundKey(state, self.roundKeys[0:4])
 
 		self.roundKeys = [[]]
-
 		return self.bytesToText(state)
+		
 
 if __name__ == '__main__':
-	""" 
-		Uso: 
+	"""
+		Uso:
 			- instânciar um objeto da classe AES;
 			- definir um texto e uma chave
 			- chamar AES().encrypt(texto, chave) para cifrar o texto usando a chave
 			- chamar AES().decrypt(texto, chave) para decifrar o texto usando a chave
+
+		Rodar o arquivo
 	"""
 	s = AES()
 
-	text = '63726970746F67726166696120414553'
+	text = 'criptografia AES'
 	key  = '6D727561766564703132333435363738'
 	state = s.encrypt(text, key)
 	print('Texto cifrado  : ' + state)
@@ -279,4 +278,27 @@ if __name__ == '__main__':
 	key  = '000102030405060708090a0b0c0d0e0f'
 	state = s.decrypt(text, key)
 	print('Texto decifrado: ' + state)
+
+	""" while True:
+		print("\nMenu AES")
+		print("1. Cifrar texto (hexadecimal)")
+		print("2. Decifrar texto (hexadecimal)")
+		print("3. Sair")
+		opcao = input("Escolha uma opção: ")
+
+		if opcao == '1':
+			text = input("Digite o texto em hexadecimal (32 caracteres): ").strip()
+			key = input("Digite a chave em hexadecimal (32 caracteres): ").strip()
+			result = s.encrypt(text, key)
+			print("Texto cifrado:", result)
+		elif opcao == '2':
+			text = input("Digite o texto cifrado em hexadecimal (32 caracteres): ").strip()
+			key = input("Digite a chave em hexadecimal (32 caracteres): ").strip()
+			result = s.decrypt(text, key)
+			print("Texto decifrado:", result)
+		elif opcao == '3':
+			print("Saindo...")
+			break
+		else:
+			print("Opção inválida. Tente novamente.") """
 	pass
