@@ -46,14 +46,14 @@ class AES:
 	)
 	''' Define a inversa da tabela de substituição '''
 
-	TRANSFORM_MATRIX = [
+	TRANSFORM_MATRIZ = [
 		[0x02, 0x03, 0x01, 0x01],
 		[0x01, 0x02, 0x03, 0x01],
 		[0x01, 0x01, 0x02, 0x03],
 		[0x03, 0x01, 0x01, 0x02]
 	]
 
-	INV_TRANSFORM_MATRIX = [
+	INV_TRANSFORM_MATRIZ = [
 		[0x0E, 0x0B, 0x0D, 0x09],
 		[0x09, 0x0E, 0x0B, 0x0D],
 		[0x0D, 0x09, 0x0E, 0x0B],
@@ -66,24 +66,31 @@ class AES:
 	)
 	''' Define a constante da rodada '''
 
-	def g_mul(self, g1:int, g2:int):
-		a = g1
-		b = g2
-		res = 0
+	def __init__(self):
+		self.min = 0x1b
+		self.roundKeys = [[]]
+
+	def g_mul(self, a:int, b:int) -> int:
+		""" Realiza a multiplicação (em corpo finito) de a por b.
+
+		Args:
+			a: Um inteiro de 8 bits representando um polinómio
+			b: Um inteiro de 8 bits representando um polinómio
+		
+		Returns:
+			int: resultado da multiplicação
+		"""
+		resultado = 0
 		while b != 0:
 			if (b & 1):
-				res ^= a
+				resultado ^= a
 			if (a & 0x80):
 				a = (a << 1) ^ self.min
 			else:
 				a <<= 1
 			a &= 0xFF
 			b >>= 1
-		return res
-
-	def __init__(self):
-		self.min = 27
-		self.roundKeys = [[]]
+		return resultado
 
 	def addRoundKey(self, state:list[list[int]], roundKey:list[list[int]]) -> None:
 		""" Realiza a soma (em corpo finito) do estado e a chave da rodada
@@ -131,71 +138,23 @@ class AES:
 			state[0][3], state[1][3], state[2][3], state[3][3] = state[1][3], state[2][3], state[3][3], state[0][3]
 		pass
 
-	def mixColumnMul(self, state:list[list[int]], transform:transformation):
-		transMatrix = self.TRANSFORM_MATRIX
+	def mixColumn(self, state:list[list[int]], transform:transformation):
+		""" Realiza a multiplicação de cada coluna do bloco pela matriz de transformação
+
+		Args:
+			state: O estado (bloco)
+			transform: Se deve transformar a usando TRANSFORM_MATRIZ (encrypt) ou INV_TRANSFORM_MATRIZ (encrypt)
+		"""
+		matriz = self.TRANSFORM_MATRIZ
 		if transform is transformation.inverse:
-			transMatrix = self.INV_TRANSFORM_MATRIX
+			matriz = self.INV_TRANSFORM_MATRIZ
 
 		for i in range(4):
 			column = state[i].copy()
-			state[i][0] = self.g_mul(column[0], transMatrix[0][0]) ^ self.g_mul(column[1], transMatrix[0][1]) ^ self.g_mul(column[2], transMatrix[0][2]) ^ self.g_mul(column[3], transMatrix[0][3])
-			state[i][1] = self.g_mul(column[0], transMatrix[1][0]) ^ self.g_mul(column[1], transMatrix[1][1]) ^ self.g_mul(column[2], transMatrix[1][2]) ^ self.g_mul(column[3], transMatrix[1][3])
-			state[i][2] = self.g_mul(column[0], transMatrix[2][0]) ^ self.g_mul(column[1], transMatrix[2][1]) ^ self.g_mul(column[2], transMatrix[2][2]) ^ self.g_mul(column[3], transMatrix[2][3])
-			state[i][3] = self.g_mul(column[0], transMatrix[3][0]) ^ self.g_mul(column[1], transMatrix[3][1]) ^ self.g_mul(column[2], transMatrix[3][2]) ^ self.g_mul(column[3], transMatrix[3][3])
-
-	def xtime(self, poly:int) -> None:
-		""" Realiza a multiplicação do polinómio poly pelo polinómio x¹ (0x02), reduzindo quando necessário.
-
-		Args:
-			poly: O polinómio (1 byte).
-		"""
-		if (poly & 0x80):
-			return (poly << 1 & 0xFF) ^ 0x1B
-		else:
-			return (poly << 1)
-
-	def decrypt_mix(self, column:list[int]) -> None:
-		""" Realiza o pré-cálculo das colunas, utilizando uma simplicação por multiplicação xtime (polinômio x¹).
-
-		Args:
-			column : A coluna (n) do estado.
-		"""
-		expression1 = self.xtime(self.xtime(column[0] ^ column[2]))
-		expression2 = self.xtime(self.xtime(column[1] ^ column[3]))
-
-		column[0] ^= expression1
-		column[1] ^= expression2
-		column[2] ^= expression1
-		column[3] ^= expression2
-		pass
-
-	def simple_mix(self, column:list[int]) -> None:
-		""" Realiza o embaralhamento das colunas, utilizando uma simplicação por multiplicação xtime (polinômio x¹).
-
-		Args:
-			column : A coluna (n) do estado.
-		"""
-		commun = column[0] ^ column[1] ^ column[2] ^ column[3]
-		temp = column[0]
-		column[0] ^= self.xtime(column[0] ^ column[1]) ^ commun
-		column[1] ^= self.xtime(column[1] ^ column[2]) ^ commun
-		column[2] ^= self.xtime(column[2] ^ column[3]) ^ commun
-		column[3] ^= self.xtime(column[3] ^ temp) ^ commun
-
-	def mixColumns(self, state:list[list[int]], transform:transformation) -> None:
-		""" Realiza o embaralhamento das colunas.
-
-		Args:
-			state : O estado (bloco).
-			transform : Se o embaralhamento deve ser feito para (encrypt) ou para (decrypt)
-		"""
-		if transform is transformation.inverse:
-			for i in range (4):
-				self.decrypt_mix(state[i])
-
-		for i in range(4):
-			self.simple_mix(state[i])
-		pass
+			state[i][0] = self.g_mul(column[0], matriz[0][0]) ^ self.g_mul(column[1], matriz[0][1]) ^ self.g_mul(column[2], matriz[0][2]) ^ self.g_mul(column[3], matriz[0][3])
+			state[i][1] = self.g_mul(column[0], matriz[1][0]) ^ self.g_mul(column[1], matriz[1][1]) ^ self.g_mul(column[2], matriz[1][2]) ^ self.g_mul(column[3], matriz[1][3])
+			state[i][2] = self.g_mul(column[0], matriz[2][0]) ^ self.g_mul(column[1], matriz[2][1]) ^ self.g_mul(column[2], matriz[2][2]) ^ self.g_mul(column[3], matriz[2][3])
+			state[i][3] = self.g_mul(column[0], matriz[3][0]) ^ self.g_mul(column[1], matriz[3][1]) ^ self.g_mul(column[2], matriz[3][2]) ^ self.g_mul(column[3], matriz[3][3])
 
 	def g(self, word:list[int], round:int) -> None:
 		""" Transforma a palavra (word), de acordo com o round
@@ -258,7 +217,7 @@ class AES:
 		for round in range(1, 10):
 			self.substituteBytes(state, transformation.normal)
 			self.shiftRows(state, transformation.normal)
-			self.mixColumnMul(state, transformation.normal)
+			self.mixColumn(state, transformation.normal)
 			self.addRoundKey(state, self.roundKeys[round*4:(round*4)+4])
 
 		self.substituteBytes(state, transformation.normal)
@@ -281,7 +240,7 @@ class AES:
 			self.shiftRows(state, transformation.inverse)
 			self.substituteBytes(state, transformation.inverse)
 			self.addRoundKey(state, self.roundKeys[round*4:(round*4)+4])
-			self.mixColumnMul(state, transformation.inverse)
+			self.mixColumn(state, transformation.inverse)
 
 		self.shiftRows(state, transformation.inverse)
 		self.substituteBytes(state, transformation.inverse)
@@ -292,16 +251,32 @@ class AES:
 		return self.bytesToText(state)
 
 if __name__ == '__main__':
+	""" 
+		Uso: 
+			- instânciar um objeto da classe AES;
+			- definir um texto e uma chave
+			- chamar AES().encrypt(texto, chave) para cifrar o texto usando a chave
+			- chamar AES().decrypt(texto, chave) para decifrar o texto usando a chave
+	"""
 	s = AES()
 
 	text = '63726970746F67726166696120414553'
 	key  = '6D727561766564703132333435363738'
 	state = s.encrypt(text, key)
-	print(state)
+	print('Texto cifrado: ' + state)
 
 	text = '486CB4D61DD525B8ED356C6EF64BDC8A'
 	key  = '6D727561766564703132333435363738'
 	state = s.decrypt(text, key)
-	print(state)
-	#s.mixColumnMul(None, transformation.inverse)
+	print('Texto decifrado: ' + state)
+
+	text = '00112233445566778899aabbccddeeff'
+	key  = '000102030405060708090a0b0c0d0e0f'
+	state = s.encrypt(text, key)
+	print('Texto cifrado: ' + state)
+
+	text = '69c4e0d86a7b0430d8cdb78070b4c55a'
+	key  = '000102030405060708090a0b0c0d0e0f'
+	state = s.decrypt(text, key)
+	print('Texto decifrado: ' + state)
 	pass
