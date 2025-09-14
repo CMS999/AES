@@ -122,7 +122,7 @@ class AES:
 			transform: Se o deslocamento circular deve ser feito a esquerda (encrypt) ou a direita (decrypt).
 		"""
 
-		#como os dados estão dispostos por linhas o deslocamento acontece por colunas
+		#como os dados estão dispostos por linhas as operações acontecem por colunas
 		if transform == 1:
 			state[0][1], state[1][1], state[2][1], state[3][1] = state[1][1], state[2][1], state[3][1], state[0][1]
 			state[0][2], state[1][2], state[2][2], state[3][2] = state[2][2], state[3][2], state[0][2], state[1][2]
@@ -174,7 +174,6 @@ class AES:
 
 		Args:
 			key: a chave privada fornecida pelo usuario.
-
 		"""
 		round = 0
 		self.roundKeys = [list(key[i:i+4]) for i in range(0, len(key), 4)]
@@ -200,10 +199,13 @@ class AES:
 		for i in state:
 			for j in i:
 				text += format(j, '02x')
-		return text
+		try:
+			resultado = bytes.fromhex(text).decode('utf-8')
+		except:
+			resultado = text
+		return resultado
 
 	def encrypt(self, cyphertext:str, key:str) -> str:
-		#cypher = self.hexToBytes(cyphertext)
 		cypher = bytes(cyphertext, 'utf-8')
 		state = [list(cypher[i:i+4]) for i in range(0, len(cypher), 4)]
 		byteKey = self.hexToBytes(key)
@@ -249,16 +251,25 @@ class AES:
 
 if __name__ == '__main__':
 	"""
-		Uso:
+		Rodando o programa:
+			- Basta executar com o python pela linha de comando
+				- python main.py
+			- Um texto será exibido na linha de comando
+				- 1 para cifrar
+				- 2 para decifrar
+				- 3 para terminar o programa
+		Uso da classe:
 			- instânciar um objeto da classe AES;
-			- definir um texto e uma chave
+			- definir um texto (string normal) e uma chave (string do hexadecimal)
 			- chamar AES().encrypt(texto, chave) para cifrar o texto usando a chave
 			- chamar AES().decrypt(texto, chave) para decifrar o texto usando a chave
 
 		Rodar o arquivo
 	"""
-	s = AES()
 
+	# exemplo de chamada em código do AES
+	""" 
+	s = AES()
 	text = 'criptografia AES'
 	key  = '6D727561766564703132333435363738'
 	state = s.encrypt(text, key)
@@ -267,28 +278,21 @@ if __name__ == '__main__':
 	text = '486CB4D61DD525B8ED356C6EF64BDC8A'
 	key  = '6D727561766564703132333435363738'
 	state = s.decrypt(text, key)
-	print('Texto decifrado: ' + state)
-
-	text = '00112233445566778899aabbccddeeff'
-	key  = '000102030405060708090a0b0c0d0e0f'
-	state = s.encrypt(text, key)
-	print('Texto cifrado  : ' + state)
-
-	text = '69c4e0d86a7b0430d8cdb78070b4c55a'
-	key  = '000102030405060708090a0b0c0d0e0f'
-	state = s.decrypt(text, key)
-	print('Texto decifrado: ' + state)
-
-	""" while True:
+	print('Texto decifrado: ' + state) 
+	"""
+	
+	#programa principal
+	s = AES()
+	while True:
 		print("\nMenu AES")
-		print("1. Cifrar texto (hexadecimal)")
-		print("2. Decifrar texto (hexadecimal)")
+		print("1. Cifrar texto")
+		print("2. Decifrar texto")
 		print("3. Sair")
 		opcao = input("Escolha uma opção: ")
 
 		if opcao == '1':
-			text = input("Digite o texto em hexadecimal (32 caracteres): ").strip()
-			key = input("Digite a chave em hexadecimal (32 caracteres): ").strip()
+			text = input("Digite o texto: ").strip()
+			key = input("Digite a chave em hexadecimal: ").strip()
 			result = s.encrypt(text, key)
 			print("Texto cifrado:", result)
 		elif opcao == '2':
@@ -300,5 +304,5 @@ if __name__ == '__main__':
 			print("Saindo...")
 			break
 		else:
-			print("Opção inválida. Tente novamente.") """
+			print("Opção inválida. Tente novamente.")
 	pass
