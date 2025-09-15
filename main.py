@@ -45,6 +45,7 @@ class AES:
 		[0x01, 0x01, 0x02, 0x03],
 		[0x03, 0x01, 0x01, 0x02]
 	]
+	''' Define a matriz do mix de colunas '''
 
 	INV_TRANSFORM_MATRIZ = [
 		[0x0E, 0x0B, 0x0D, 0x09],
@@ -52,6 +53,7 @@ class AES:
 		[0x0D, 0x09, 0x0E, 0x0B],
 		[0x0B, 0x0D, 0x09, 0x0E]
 	]
+	''' Define a inversa da matriz do mix de colunas '''
 
 
 	RCON = (
@@ -60,6 +62,7 @@ class AES:
 	''' Define a constante da rodada '''
 
 	def __init__(self):
+		#note que aqui só há a primeira parte do polinómio (x⁴ + x³+ x + 1)
 		self.min = 0x1b
 		''' Polinómio de redução x⁸+ x⁴ + x³+ x + 1'''
 
@@ -94,6 +97,8 @@ class AES:
 			state : O estado (bloco).
 			roundKey : a chave da rodada.
 		"""
+
+		#Como o estado está disposto em linhas a soma é linha a linha
 		for i in range(4):
 			for j in range(4):
 				state[i][j] ^= roundKey[i][j]
@@ -106,6 +111,8 @@ class AES:
 			state : O estado (bloco).
 			transform: Se a tabela S_BOX (encrypt) ou INV_S_BOX (decrypt) deve ser usada.
 		"""
+
+		#Aqui a disposição em linhas não afeta a operação
 		for i in range(4):
 			for j in range(4):
 				if transform == 1:
@@ -122,7 +129,7 @@ class AES:
 			transform: Se o deslocamento circular deve ser feito a esquerda (encrypt) ou a direita (decrypt).
 		"""
 
-		#como os dados estão dispostos por linhas as operações acontecem por colunas
+		#como os dados estão dispostos por linhas o deslocamento acontecem pelas colunas
 		if transform == 1:
 			state[0][1], state[1][1], state[2][1], state[3][1] = state[1][1], state[2][1], state[3][1], state[0][1]
 			state[0][2], state[1][2], state[2][2], state[3][2] = state[2][2], state[3][2], state[0][2], state[1][2]
@@ -256,18 +263,20 @@ if __name__ == '__main__':
 				- python main.py
 			- Um texto será exibido na linha de comando
 				- 1 para cifrar
+					- inserir texto a ser cifrado
+					- inserir chave em hexadecimal
 				- 2 para decifrar
+					- inserir texto a ser decifrado
+					- inserir chave em hexadecimal
 				- 3 para terminar o programa
 		Uso da classe:
 			- instânciar um objeto da classe AES;
 			- definir um texto (string normal) e uma chave (string do hexadecimal)
 			- chamar AES().encrypt(texto, chave) para cifrar o texto usando a chave
 			- chamar AES().decrypt(texto, chave) para decifrar o texto usando a chave
-
-		Rodar o arquivo
 	"""
 
-	# exemplo de chamada em código do AES
+	# exemplo de chamada em código da classe AES
 	""" 
 	s = AES()
 	text = 'criptografia AES'
